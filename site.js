@@ -12,10 +12,7 @@
     monLong: ["ינואר","פברואר","מרץ","אפריל","מאי","יוני","יולי","אוגוסט","ספטמבר","אוקטובר","נובמבר","דצמבר"],
     side: { ent: "ארגון", su: "סטארטאפ", own: "מוצר שלנו" },
     cat: { training: "הדרכה", deck: "הרצאה או מצגת", system: "מערכת ללקוח", product: "מוצר", rnd: "מחקר ופיתוח" },
-    peak: function (m, n, c) { return m + ": " + n + " פרויקטים חדשים אצל " + c + " לקוחות"; },
-    win: function (c) { return c + " לקוחות תוך 8 ימים"; },
-    winSub: function (n, d, cl) { return n + " תוצרים בשבוע של " + d + ": " + cl + "."; },
-    live: function (a, b) { return a + " מתוך " + b + " עלו לאוויר תוך יום"; },
+    pace: function (a, b) { return "בין " + a + " ל " + b + " פרויקטים בכל חודש"; },
     day: function (d, m) { return d + " ב" + m; },
     sameDay: "עלה לאוויר באותו יום", nextDay: "עלה לאוויר למחרת", inDays: function (n) { return "עלה לאוויר תוך " + n + " ימים"; },
     open: "לפתיחה ↖", conf: "חסוי, אין קישור ציבורי", client: "לקוח", peakTag: "שיא",
@@ -26,10 +23,7 @@
     monLong: ["January","February","March","April","May","June","July","August","September","October","November","December"],
     side: { ent: "Enterprise", su: "Startup / SMB", own: "Our product" },
     cat: { training: "Training", deck: "Talk / deck", system: "Client system", product: "Product", rnd: "R&D" },
-    peak: function (m, n, c) { return m + ": " + n + " launches for " + c + " clients"; },
-    win: function (c) { return c + " clients in 8 days"; },
-    winSub: function (n, d, cl) { return n + " deliverables in the week of " + d + ": " + cl + "."; },
-    live: function (a, b) { return a + " of " + b + " live within a day"; },
+    pace: function (a, b) { return a + " to " + b + " projects every month"; },
     day: function (d, m) { return d + " " + m; },
     sameDay: "live the same day", nextDay: "live the next day", inDays: function (n) { return "live in " + n + " days"; },
     open: "open ↗", conf: "confidential, no public link", client: "Client", peakTag: "peak",
@@ -45,14 +39,8 @@
     if (typeof v === "number") el.textContent = v;
   });
   function fmtMonth(ym) { var p = ym.split("-"); return T.monLong[+p[1] - 1] + " " + p[0]; }
-  setText("peakLine", T.peak(fmtMonth(S.peak_month.month), S.peak_month.new, S.peak_month.clients.length));
-  setText("windowLine", T.win(S.busiest_window.clients.length));
-  setText("windowSub", T.winSub(S.busiest_window.deliverables, fmtDay(S.busiest_window.start), S.busiest_window.clients.join(", ")));
-  setText("liveLine", T.live(S.live_within_1_day, S.deployable));
-  var g = S.generated.split("-");
-  setText("genDate", HE ? (+g[2]) + "." + (+g[1]) + "." + g[0] : (+g[2]) + " " + T.monLong[+g[1] - 1] + " " + g[0]);
+  setText("paceLine", T.pace(S.per_month_min, S.per_month_max));
   function setText(id, t) { var e = document.getElementById(id); if (e) e.textContent = t; }
-  function fmtDay(d) { var p = d.split("-"); return T.day(+p[2], T.monLong[+p[1] - 1]); }
 
   /* ---- ship log ---- */
   var chart = document.getElementById("logChart"), tip = document.getElementById("logTip");
@@ -70,13 +58,12 @@
   months.forEach(function (key) {
     var col = document.createElement("div"); col.className = "log-col";
     var list = (byMonth[key] || []).sort(function (x, y) { return x.side < y.side ? -1 : 1; });
-    if (key === S.peak_month.month) { col.classList.add("peak"); col.setAttribute("data-peak", T.peakTag + " · " + S.peak_month.new); }
     var stack = document.createElement("div"); stack.className = "log-stack";
     list.forEach(function (i) {
       var b = document.createElement("button");
       b.type = "button";
       b.className = "dot " + i.side + (i.url ? "" : " nolink");
-      b.setAttribute("aria-label", titleOf(i) + (i.client ? ", " + i.client : "") + ", " + fmtMonth(key));
+      b.setAttribute("aria-label", titleOf(i) + ", " + fmtMonth(key));
       b._i = i;
       b.addEventListener("mouseenter", show); b.addEventListener("focus", show);
       b.addEventListener("mouseleave", hide); b.addEventListener("blur", hide);
@@ -90,19 +77,17 @@
     });
     var lab = document.createElement("div"); lab.className = "log-m";
     var p = key.split("-");
-    lab.innerHTML = MON[+p[1] - 1] + "<b>" + (p[1] === "01" || key === months[0] ? p[0] : "&nbsp;") + "</b>";
+    lab.innerHTML = MON[+p[1] - 1] + "<b>" + (key === months[0] ? p[0] : "&nbsp;") + "</b>";
     col.appendChild(stack); col.appendChild(lab); chart.appendChild(col);
   });
 
   function show() {
     var i = this._i, r = this.getBoundingClientRect();
-    var meta = [CAT[i.cat], fmtDay(i.date) + " " + i.date.slice(0, 4)];
+    var meta = [CAT[i.cat], fmtMonth(i.date.slice(0, 7))];
     tip.dir = RTL ? "rtl" : "ltr";
-    if (i.days_to_live !== null && i.days_to_live !== undefined && i.days_to_live <= 1.5) meta.push(i.days_to_live < 1 ? T.sameDay : T.nextDay);
-    else if (i.days_to_live) meta.push(T.inDays(Math.round(i.days_to_live)));
     tip.innerHTML = '<div class="c"></div><div class="t"></div><div class="m"></div>' +
       (i.url ? '<div class="go">' + T.open + '</div>' : '<div class="m">' + T.conf + '</div>');
-    tip.querySelector(".c").textContent = (i.client || T.client) + " · " + SIDE[i.side];
+    tip.querySelector(".c").textContent = SIDE[i.side];
     tip.querySelector(".t").textContent = titleOf(i);
     tip.querySelector(".m").textContent = meta.join(" · ");
     tip.hidden = false; tip._cur = this;
