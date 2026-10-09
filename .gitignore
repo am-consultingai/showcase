@@ -1,0 +1,8 @@
+# local only: research reports, internal plan, curation tools, raw screenshots
+research/
+PLAN.md
+NOTES.md
+tools/
+img/shots/raw/
+__pycache__/
+img/unused/
